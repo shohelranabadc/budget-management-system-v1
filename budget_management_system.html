@@ -1,0 +1,1238 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>বাজেট ম্যানেজমেন্ট সিস্টেম</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Bengali:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        'bengali': ['Noto Sans Bengali', 'sans-serif'],
+                    },
+                    colors: {
+                        'brand': {
+                            50: '#eff6ff',
+                            100: '#dbeafe',
+                            200: '#bfdbfe',
+                            300: '#93c5fd',
+                            400: '#60a5fa',
+                            500: '#3b82f6',
+                            600: '#2563eb',
+                            700: '#1d4ed8',
+                            800: '#1e40af',
+                            900: '#1e3a8a',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        * { font-family: 'Noto Sans Bengali', sans-serif; }
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .card-hover {
+            transition: all 0.3s ease;
+        }
+        .card-hover:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+        }
+        .animate-fade-in {
+            animation: fadeIn 0.4s ease-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .modal-overlay {
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(4px);
+        }
+        .budget-progress {
+            transition: width 0.6s ease;
+        }
+        .tab-active {
+            border-bottom: 3px solid #3b82f6;
+            color: #1d4ed8;
+            font-weight: 600;
+        }
+        .print-only { display: none; }
+        @media print {
+            .no-print { display: none !important; }
+            .print-only { display: block !important; }
+            body { background: white !important; }
+            .glass-panel { box-shadow: none !important; border: 1px solid #ddd !important; }
+        }
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
+        .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen font-bengali">
+
+    <!-- Navigation -->
+    <nav class="bg-white shadow-sm sticky top-0 z-50 no-print">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 gradient-bg rounded-lg flex items-center justify-center text-white">
+                        <i class="fas fa-calculator text-lg"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-xl font-bold text-gray-900">বাজেট ম্যানেজমেন্ট</h1>
+                        <p class="text-xs text-gray-500">অফিস বাজেট ট্র্যাকিং সিস্টেম</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button onclick="app.exportToExcel()" class="hidden sm:flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition text-sm">
+                        <i class="fas fa-file-excel"></i>
+                        <span>Excel</span>
+                    </button>
+                    <button onclick="window.print()" class="hidden sm:flex items-center gap-2 px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-800 transition text-sm">
+                        <i class="fas fa-print"></i>
+                        <span>প্রিন্ট</span>
+                    </button>
+                    <button onclick="app.showSettings()" class="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition">
+                        <i class="fas fa-cog text-lg"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Mobile Action Bar -->
+    <div class="sm:hidden fixed bottom-0 left-0 right-0 bg-white border-t shadow-lg z-50 no-print px-4 py-2 flex justify-around">
+        <button onclick="app.exportToExcel()" class="flex flex-col items-center gap-1 text-green-600">
+            <i class="fas fa-file-excel text-lg"></i>
+            <span class="text-xs">Excel</span>
+        </button>
+        <button onclick="window.print()" class="flex flex-col items-center gap-1 text-gray-600">
+            <i class="fas fa-print text-lg"></i>
+            <span class="text-xs">প্রিন্ট</span>
+        </button>
+        <button onclick="app.showSettings()" class="flex flex-col items-center gap-1 text-gray-600">
+            <i class="fas fa-cog text-lg"></i>
+            <span class="text-xs">সেটিংস</span>
+        </button>
+    </div>
+
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-24 sm:pb-6">
+
+        <!-- Fiscal Year Selector -->
+        <div class="bg-white rounded-xl shadow-sm p-4 mb-6 no-print">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div class="flex items-center gap-3">
+                    <i class="fas fa-calendar-alt text-brand-600 text-xl"></i>
+                    <div>
+                        <label class="text-sm font-medium text-gray-700">অর্থবছর নির্বাচন করুন</label>
+                        <select id="fiscalYearSelect" onchange="app.changeFiscalYear(this.value)" 
+                            class="mt-1 block w-full sm:w-64 rounded-lg border-gray-300 bg-gray-50 px-3 py-2 text-sm focus:border-brand-500 focus:ring-brand-500">
+                        </select>
+                    </div>
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="app.showAddFiscalYearModal()" class="flex items-center gap-2 px-4 py-2 bg-brand-600 text-white rounded-lg hover:bg-brand-700 transition text-sm">
+                        <i class="fas fa-plus"></i>
+                        <span>নতুন অর্থবছর</span>
+                    </button>
+                    <button onclick="app.showEditFiscalYearModal()" class="flex items-center gap-2 px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition text-sm">
+                        <i class="fas fa-edit"></i>
+                        <span>সম্পাদনা</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Summary Cards -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            <div class="bg-white rounded-xl shadow-sm p-5 card-hover">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm text-gray-500">মোট বাজেট</p>
+                        <p class="text-2xl font-bold text-gray-900 mt-1" id="totalBudget">৳০</p>
+                    </div>
+                    <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                        <i class="fas fa-wallet text-blue-600 text-lg"></i>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-white rounded-xl shadow-sm p-5 card-hover">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm text-gray-500">মোট ব্যয়</p>
+                        <p class="text-2xl font-bold text-red-600 mt-1" id="totalExpense">৳০</p>
+                    </div>
+                    <div class="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+                        <i class="fas fa-money-bill-wave text-red-600 text-lg"></i>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-white rounded-xl shadow-sm p-5 card-hover">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm text-gray-500">অবশিষ্ট বাজেট</p>
+                        <p class="text-2xl font-bold text-green-600 mt-1" id="totalRemaining">৳০</p>
+                    </div>
+                    <div class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
+                        <i class="fas fa-piggy-bank text-green-600 text-lg"></i>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-white rounded-xl shadow-sm p-5 card-hover">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm text-gray-500">ব্যয়ের হার</p>
+                        <p class="text-2xl font-bold text-purple-600 mt-1" id="expenseRate">০%</p>
+                    </div>
+                    <div class="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
+                        <i class="fas fa-chart-pie text-purple-600 text-lg"></i>
+                    </div>
+                </div>
+                <div class="mt-3 w-full bg-gray-200 rounded-full h-2">
+                    <div id="expenseProgress" class="bg-purple-600 h-2 rounded-full budget-progress" style="width: 0%"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tabs -->
+        <div class="bg-white rounded-xl shadow-sm mb-6 no-print">
+            <div class="border-b border-gray-200">
+                <nav class="flex overflow-x-auto scrollbar-hide" aria-label="Tabs">
+                    <button onclick="app.switchTab('budgets')" id="tab-budgets" class="tab-active px-6 py-4 text-sm font-medium whitespace-nowrap">
+                        <i class="fas fa-list-alt mr-2"></i>বাজেট খাতসমূহ
+                    </button>
+                    <button onclick="app.switchTab('logs')" id="tab-logs" class="px-6 py-4 text-sm font-medium text-gray-500 hover:text-gray-700 whitespace-nowrap">
+                        <i class="fas fa-history mr-2"></i>পরিবর্তন লগ
+                    </button>
+                    <button onclick="app.switchTab('reports')" id="tab-reports" class="px-6 py-4 text-sm font-medium text-gray-500 hover:text-gray-700 whitespace-nowrap">
+                        <i class="fas fa-chart-bar mr-2"></i>রিপোর্ট
+                    </button>
+                </nav>
+            </div>
+        </div>
+
+        <!-- Budgets Tab -->
+        <div id="content-budgets" class="animate-fade-in">
+            <div class="flex justify-between items-center mb-4 no-print">
+                <h2 class="text-lg font-bold text-gray-900">বাজেট খাতসমূহ</h2>
+                <button onclick="app.showAddBudgetModal()" class="flex items-center gap-2 px-4 py-2 bg-brand-600 text-white rounded-lg hover:bg-brand-700 transition text-sm">
+                    <i class="fas fa-plus"></i>
+                    <span>নতুন খাত</span>
+                </button>
+            </div>
+
+            <div id="budgetsList" class="space-y-4"></div>
+
+            <div id="emptyState" class="hidden text-center py-12">
+                <div class="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i class="fas fa-folder-open text-gray-400 text-3xl"></i>
+                </div>
+                <h3 class="text-lg font-medium text-gray-900">কোনো খাত নেই</h3>
+                <p class="text-gray-500 mt-1">এই অর্থবছরে এখনো কোনো বাজেট খাত যোগ করা হয়নি</p>
+                <button onclick="app.showAddBudgetModal()" class="mt-4 px-4 py-2 bg-brand-600 text-white rounded-lg hover:bg-brand-700 transition text-sm">
+                    প্রথম খাত যোগ করুন
+                </button>
+            </div>
+        </div>
+
+        <!-- Logs Tab -->
+        <div id="content-logs" class="hidden animate-fade-in">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-lg font-bold text-gray-900">পরিবর্তন লগ</h2>
+                <div class="flex gap-2 no-print">
+                    <input type="text" id="logSearch" placeholder="খাত বা স্মারক খুঁজুন..." 
+                        onkeyup="app.filterLogs()"
+                        class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
+                </div>
+            </div>
+            <div class="bg-white rounded-xl shadow-sm overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">তারিখ</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">খাত</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">পরিবর্তনের ধরন</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">বিস্তারিত</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">স্মারক</th>
+                            </tr>
+                        </thead>
+                        <tbody id="logsTableBody" class="bg-white divide-y divide-gray-200"></tbody>
+                    </table>
+                </div>
+                <div id="emptyLogs" class="hidden text-center py-8">
+                    <p class="text-gray-500">কোনো লগ পাওয়া যায়নি</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Reports Tab -->
+        <div id="content-reports" class="hidden animate-fade-in">
+            <h2 class="text-lg font-bold text-gray-900 mb-4">বাজেট রিপোর্ট</h2>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div class="bg-white rounded-xl shadow-sm p-6">
+                    <h3 class="text-base font-semibold text-gray-900 mb-4">খাত অনুযায়ী বাজেট বণ্টন</h3>
+                    <div id="budgetChart" class="space-y-3"></div>
+                </div>
+                <div class="bg-white rounded-xl shadow-sm p-6">
+                    <h3 class="text-base font-semibold text-gray-900 mb-4">ব্যয় বিশ্লেষণ</h3>
+                    <div id="expenseChart" class="space-y-3"></div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Modals -->
+    <div id="budgetModal" class="fixed inset-0 z-50 hidden">
+        <div class="modal-overlay absolute inset-0" onclick="app.closeModal('budgetModal')"></div>
+        <div class="relative min-h-screen flex items-center justify-center p-4">
+            <div class="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto animate-fade-in">
+                <div class="p-6 border-b border-gray-200">
+                    <div class="flex justify-between items-center">
+                        <h3 class="text-lg font-bold text-gray-900" id="budgetModalTitle">নতুন বাজেট খাত</h3>
+                        <button onclick="app.closeModal('budgetModal')" class="text-gray-400 hover:text-gray-600">
+                            <i class="fas fa-times text-xl"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="p-6 space-y-4">
+                    <input type="hidden" id="budgetId">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">খাতের নাম <span class="text-red-500">*</span></label>
+                        <input type="text" id="budgetName" placeholder="যেমন: প্রশিক্ষণ, ইন্টারনেট..." 
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">মোট বাজেট (৳) <span class="text-red-500">*</span></label>
+                        <input type="number" id="budgetAmount" placeholder="০" 
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">বর্তমান ব্যয় (৳)</label>
+                        <input type="number" id="budgetExpense" placeholder="০" 
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">স্মারক/রেফারেন্স</label>
+                        <input type="text" id="budgetMemo" placeholder="যেমন: স্মারক নং ১২৩/২০২৫" 
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">মন্তব্য</label>
+                        <textarea id="budgetNote" rows="2" placeholder="ঐচ্ছিক মন্তব্য..." 
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500"></textarea>
+                    </div>
+                </div>
+                <div class="p-6 border-t border-gray-200 flex justify-end gap-3">
+                    <button onclick="app.closeModal('budgetModal')" class="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition">বাতিল</button>
+                    <button onclick="app.saveBudget()" class="px-4 py-2 bg-brand-600 text-white rounded-lg hover:bg-brand-700 transition">সংরক্ষণ করুন</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="fiscalYearModal" class="fixed inset-0 z-50 hidden">
+        <div class="modal-overlay absolute inset-0" onclick="app.closeModal('fiscalYearModal')"></div>
+        <div class="relative min-h-screen flex items-center justify-center p-4">
+            <div class="bg-white rounded-xl shadow-xl w-full max-w-md animate-fade-in">
+                <div class="p-6 border-b border-gray-200">
+                    <div class="flex justify-between items-center">
+                        <h3 class="text-lg font-bold text-gray-900" id="fiscalYearModalTitle">নতুন অর্থবছর</h3>
+                        <button onclick="app.closeModal('fiscalYearModal')" class="text-gray-400 hover:text-gray-600">
+                            <i class="fas fa-times text-xl"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="p-6 space-y-4">
+                    <input type="hidden" id="fiscalYearId">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">অর্থবছরের নাম <span class="text-red-500">*</span></label>
+                        <input type="text" id="fiscalYearName" placeholder="যেমন: ২০২৫-২০২৬" 
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">শুরুর তারিখ</label>
+                        <input type="date" id="fiscalYearStart" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">শেষ তারিখ</label>
+                        <input type="date" id="fiscalYearEnd" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500">
+                    </div>
+                </div>
+                <div class="p-6 border-t border-gray-200 flex justify-end gap-3">
+                    <button onclick="app.closeModal('fiscalYearModal')" class="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition">বাতিল</button>
+                    <button onclick="app.saveFiscalYear()" class="px-4 py-2 bg-brand-600 text-white rounded-lg hover:bg-brand-700 transition">সংরক্ষণ করুন</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="adjustModal" class="fixed inset-0 z-50 hidden">
+        <div class="modal-overlay absolute inset-0" onclick="app.closeModal('adjustModal')"></div>
+        <div class="relative min-h-screen flex items-center justify-center p-4">
+            <div class="bg-white rounded-xl shadow-xl w-full max-w-md animate-fade-in">
+                <div class="p-6 border-b border-gray-200">
+                    <div class="flex justify-between items-center">
+                        <h3 class="text-lg font-bold text-gray-900">বাজেট পরিবর্তন</h3>
+                        <button onclick="app.closeModal('adjustModal')" class="text-gray-400 hover:text-gray-600">
+                            <i class="fas fa-times text-xl"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="p-6 space-y-4">
+                    <input type="hidden" id="adjustBudgetId">
+                    <div class="bg-blue-50 p-3 rounded-lg">
+                        <p class="text-sm text-blue-800">খাত: <span id="adjustBudgetName" class="font-semibold"></span></p>
+                        <p class="text-sm text-blue-800">বর্তমান বাজেট: <span id="adjustCurrentAmount" class="font-semibold"></span></p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">নতুন বাজেট পরিমাণ (৳) <span class="text-red-500">*</span></label>
+                        <input type="number" id="adjustNewAmount" placeholder="০" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">পরিবর্তনের কারণ</label>
+                        <textarea id="adjustReason" rows="2" placeholder="কেন বাজেট পরিবর্তন করা হচ্ছে..." class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500"></textarea>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">স্মারক/রেফারেন্স <span class="text-red-500">*</span></label>
+                        <input type="text" id="adjustMemo" placeholder="যেমন: স্মারক নং ৪৫৬/২০২৫" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">তারিখ</label>
+                        <input type="date" id="adjustDate" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500">
+                    </div>
+                </div>
+                <div class="p-6 border-t border-gray-200 flex justify-end gap-3">
+                    <button onclick="app.closeModal('adjustModal')" class="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition">বাতিল</button>
+                    <button onclick="app.saveAdjustment()" class="px-4 py-2 bg-brand-600 text-white rounded-lg hover:bg-brand-700 transition">পরিবর্তন সংরক্ষণ</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="expenseModal" class="fixed inset-0 z-50 hidden">
+        <div class="modal-overlay absolute inset-0" onclick="app.closeModal('expenseModal')"></div>
+        <div class="relative min-h-screen flex items-center justify-center p-4">
+            <div class="bg-white rounded-xl shadow-xl w-full max-w-md animate-fade-in">
+                <div class="p-6 border-b border-gray-200">
+                    <div class="flex justify-between items-center">
+                        <h3 class="text-lg font-bold text-gray-900">ব্যয় যোগ করুন</h3>
+                        <button onclick="app.closeModal('expenseModal')" class="text-gray-400 hover:text-gray-600">
+                            <i class="fas fa-times text-xl"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="p-6 space-y-4">
+                    <input type="hidden" id="expenseBudgetId">
+                    <div class="bg-blue-50 p-3 rounded-lg">
+                        <p class="text-sm text-blue-800">খাত: <span id="expenseBudgetName" class="font-semibold"></span></p>
+                        <p class="text-sm text-blue-800">অবশিষ্ট: <span id="expenseRemaining" class="font-semibold"></span></p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">ব্যয়ের পরিমাণ (৳) <span class="text-red-500">*</span></label>
+                        <input type="number" id="expenseAmount" placeholder="০" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">ব্যয়ের বিবরণ</label>
+                        <input type="text" id="expenseDescription" placeholder="কিসের জন্য ব্যয়..." class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">স্মারক/রেফারেন্স</label>
+                        <input type="text" id="expenseMemo" placeholder="যেমন: ভাউচার নং ০০১" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">তারিখ</label>
+                        <input type="date" id="expenseDate" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500">
+                    </div>
+                </div>
+                <div class="p-6 border-t border-gray-200 flex justify-end gap-3">
+                    <button onclick="app.closeModal('expenseModal')" class="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition">বাতিল</button>
+                    <button onclick="app.saveExpense()" class="px-4 py-2 bg-brand-600 text-white rounded-lg hover:bg-brand-700 transition">ব্যয় সংরক্ষণ</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="deleteModal" class="fixed inset-0 z-50 hidden">
+        <div class="modal-overlay absolute inset-0" onclick="app.closeModal('deleteModal')"></div>
+        <div class="relative min-h-screen flex items-center justify-center p-4">
+            <div class="bg-white rounded-xl shadow-xl w-full max-w-sm animate-fade-in">
+                <div class="p-6 text-center">
+                    <div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <i class="fas fa-exclamation-triangle text-red-600 text-2xl"></i>
+                    </div>
+                    <h3 class="text-lg font-bold text-gray-900 mb-2">নিশ্চিত করুন</h3>
+                    <p class="text-gray-500 mb-6" id="deleteMessage">আপনি কি নিশ্চিতভাবে এই আইটেমটি মুছতে চান?</p>
+                    <div class="flex justify-center gap-3">
+                        <button onclick="app.closeModal('deleteModal')" class="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition">বাতিল</button>
+                        <button onclick="app.confirmDelete()" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition">মুছে ফেলুন</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="settingsModal" class="fixed inset-0 z-50 hidden">
+        <div class="modal-overlay absolute inset-0" onclick="app.closeModal('settingsModal')"></div>
+        <div class="relative min-h-screen flex items-center justify-center p-4">
+            <div class="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto animate-fade-in">
+                <div class="p-6 border-b border-gray-200">
+                    <div class="flex justify-between items-center">
+                        <h3 class="text-lg font-bold text-gray-900">সেটিংস</h3>
+                        <button onclick="app.closeModal('settingsModal')" class="text-gray-400 hover:text-gray-600">
+                            <i class="fas fa-times text-xl"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="p-6 space-y-6">
+                    <div>
+                        <h4 class="text-sm font-semibold text-gray-900 mb-3">ডাটা ম্যানেজমেন্ট</h4>
+                        <div class="space-y-2">
+                            <button onclick="app.exportData()" class="w-full flex items-center gap-3 px-4 py-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition text-left">
+                                <i class="fas fa-download text-brand-600"></i>
+                                <div>
+                                    <p class="text-sm font-medium text-gray-900">সব ডাটা এক্সপোর্ট করুন</p>
+                                    <p class="text-xs text-gray-500">JSON ফাইল হিসেবে ডাউনলোড করুন</p>
+                                </div>
+                            </button>
+                            <button onclick="document.getElementById('importFile').click()" class="w-full flex items-center gap-3 px-4 py-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition text-left">
+                                <i class="fas fa-upload text-green-600"></i>
+                                <div>
+                                    <p class="text-sm font-medium text-gray-900">ডাটা ইমপোর্ট করুন</p>
+                                    <p class="text-xs text-gray-500">JSON ফাইল থেকে ডাটা লোড করুন</p>
+                                </div>
+                            </button>
+                            <input type="file" id="importFile" accept=".json" class="hidden" onchange="app.importData(this)">
+                            <button onclick="app.showResetConfirm()" class="w-full flex items-center gap-3 px-4 py-3 bg-red-50 rounded-lg hover:bg-red-100 transition text-left">
+                                <i class="fas fa-trash-alt text-red-600"></i>
+                                <div>
+                                    <p class="text-sm font-medium text-red-900">সব ডাটা রিসেট করুন</p>
+                                    <p class="text-xs text-red-500">সাবধান: এটি সব ডাটা মুছে ফেলবে</p>
+                                </div>
+                            </button>
+                        </div>
+                    </div>
+                    <div>
+                        <h4 class="text-sm font-semibold text-gray-900 mb-3">অফিস তথ্য (প্রিন্ট/রিপোর্ট এর জন্য)</h4>
+                        <div class="space-y-3">
+                            <div>
+                                <label class="block text-xs font-medium text-gray-700 mb-1">অফিসের নাম</label>
+                                <input type="text" id="officeName" placeholder="আপনার অফিসের নাম" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-700 mb-1">ঠিকানা</label>
+                                <input type="text" id="officeAddress" placeholder="অফিসের ঠিকানা" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="p-6 border-t border-gray-200 flex justify-end">
+                    <button onclick="app.saveSettings()" class="px-4 py-2 bg-brand-600 text-white rounded-lg hover:bg-brand-700 transition">সেটিংস সংরক্ষণ</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Print Header -->
+    <div class="print-only p-8 border-b-2 border-gray-800 mb-6">
+        <div class="text-center">
+            <h1 id="printOfficeName" class="text-2xl font-bold text-gray-900">বাজেট বিবরণী</h1>
+            <p id="printOfficeAddress" class="text-sm text-gray-600 mt-1"></p>
+            <p id="printFiscalYear" class="text-lg font-semibold text-gray-800 mt-2"></p>
+            <p class="text-sm text-gray-500 mt-1">প্রিন্টের তারিখ: <span id="printDate"></span></p>
+        </div>
+    </div>
+
+    <script>
+        const app = {
+            data: {
+                fiscalYears: [],
+                budgets: {},
+                logs: {},
+                settings: { officeName: '', officeAddress: '' }
+            },
+            currentFiscalYear: null,
+            currentTab: 'budgets',
+            deleteTarget: null,
+            deleteType: null,
+
+            init() {
+                this.loadData();
+                if (this.data.fiscalYears.length === 0) this.createDefaultData();
+                this.currentFiscalYear = this.data.fiscalYears[0]?.id;
+                this.renderFiscalYearSelect();
+                this.renderAll();
+                this.setupEventListeners();
+            },
+
+            createDefaultData() {
+                const fy2025 = this.generateId();
+                const fy2026 = this.generateId();
+                const fy2027 = this.generateId();
+
+                this.data.fiscalYears = [
+                    { id: fy2025, name: '2025-2026', startDate: '2025-07-01', endDate: '2026-06-30' },
+                    { id: fy2026, name: '2026-2027', startDate: '2026-07-01', endDate: '2027-06-30' },
+                    { id: fy2027, name: '2027-2028', startDate: '2027-07-01', endDate: '2028-06-30' }
+                ];
+
+                this.data.budgets[fy2025] = [
+                    { id: this.generateId(), name: 'প্রশিক্ষণ', amount: 500000, expense: 125000, memo: 'স্মারক নং ১০১/২০২৫', note: 'কর্মচারী প্রশিক্ষণ' },
+                    { id: this.generateId(), name: 'ইন্টারনেট ও যোগাযোগ', amount: 120000, expense: 45000, memo: 'স্মারক নং ১০২/২০২৫', note: 'ব্রডব্যান্ড ও মোবাইল' },
+                    { id: this.generateId(), name: 'লাইন ও তার', amount: 80000, expense: 20000, memo: 'স্মারক নং ১০৩/২০২৫', note: 'টেলিফোন লাইন' },
+                    { id: this.generateId(), name: 'প্রচার ও বিজ্ঞাপন', amount: 200000, expense: 75000, memo: 'স্মারক নং ১০৪/২০২৫', note: 'নিউজপেপার ও অনলাইন' },
+                    { id: this.generateId(), name: 'অফিস স্টেশনারি', amount: 60000, expense: 15000, memo: 'স্মারক নং ১০৫/২০২৫', note: 'কাগজ, কলম, ফাইল' }
+                ];
+
+                this.data.budgets[fy2026] = [
+                    { id: this.generateId(), name: 'প্রশিক্ষণ', amount: 550000, expense: 0, memo: '', note: '' },
+                    { id: this.generateId(), name: 'ইন্টারনেট ও যোগাযোগ', amount: 130000, expense: 0, memo: '', note: '' }
+                ];
+
+                this.data.budgets[fy2027] = [];
+
+                this.data.logs[fy2025] = [
+                    { id: this.generateId(), date: '2025-07-01', budgetName: 'প্রশিক্ষণ', type: 'budget_created', details: 'বাজেট খাত তৈরি করা হয়েছে। মোট বাজেট: ৳৫০০,০০০', memo: 'স্মারক নং ১০১/২০২৫' },
+                    { id: this.generateId(), date: '2025-08-15', budgetName: 'প্রশিক্ষণ', type: 'expense_added', details: 'ব্যয় যোগ: ৳৫০,০০০ - প্রশিক্ষণ সামগ্রী ক্রয়', memo: 'ভাউচার নং ০০১' },
+                    { id: this.generateId(), date: '2025-09-20', budgetName: 'প্রশিক্ষণ', type: 'expense_added', details: 'ব্যয় যোগ: ৳৭৫,০০০ - বাহিরে প্রশিক্ষণ', memo: 'ভাউচার নং ০০২' }
+                ];
+
+                this.data.logs[fy2026] = [];
+                this.data.logs[fy2027] = [];
+                this.saveData();
+            },
+
+            generateId() {
+                return 'id_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+            },
+
+            loadData() {
+                try {
+                    const saved = localStorage.getItem('budgetManagerData');
+                    if (saved) this.data = JSON.parse(saved);
+                } catch (e) { console.error('Error loading data:', e); }
+            },
+
+            saveData() {
+                try { localStorage.setItem('budgetManagerData', JSON.stringify(this.data)); }
+                catch (e) { console.error('Error saving data:', e); }
+            },
+
+            renderFiscalYearSelect() {
+                const select = document.getElementById('fiscalYearSelect');
+                select.innerHTML = this.data.fiscalYears.map(fy => 
+                    `<option value="${fy.id}" ${fy.id === this.currentFiscalYear ? 'selected' : ''}>${fy.name}</option>`
+                ).join('');
+            },
+
+            changeFiscalYear(id) {
+                this.currentFiscalYear = id;
+                this.renderAll();
+            },
+
+            renderAll() {
+                this.renderSummary();
+                this.renderBudgets();
+                this.renderLogs();
+                this.renderReports();
+                this.updatePrintInfo();
+            },
+
+            renderSummary() {
+                const budgets = this.data.budgets[this.currentFiscalYear] || [];
+                const totalBudget = budgets.reduce((sum, b) => sum + (b.amount || 0), 0);
+                const totalExpense = budgets.reduce((sum, b) => sum + (b.expense || 0), 0);
+                const totalRemaining = totalBudget - totalExpense;
+                const expenseRate = totalBudget > 0 ? (totalExpense / totalBudget * 100) : 0;
+
+                document.getElementById('totalBudget').textContent = '৳' + this.formatNumber(totalBudget);
+                document.getElementById('totalExpense').textContent = '৳' + this.formatNumber(totalExpense);
+                document.getElementById('totalRemaining').textContent = '৳' + this.formatNumber(totalRemaining);
+                document.getElementById('expenseRate').textContent = expenseRate.toFixed(1) + '%';
+                document.getElementById('expenseProgress').style.width = Math.min(expenseRate, 100) + '%';
+            },
+
+            renderBudgets() {
+                const budgets = this.data.budgets[this.currentFiscalYear] || [];
+                const container = document.getElementById('budgetsList');
+                const emptyState = document.getElementById('emptyState');
+
+                if (budgets.length === 0) {
+                    container.innerHTML = '';
+                    emptyState.classList.remove('hidden');
+                    return;
+                }
+
+                emptyState.classList.add('hidden');
+
+                container.innerHTML = budgets.map(budget => {
+                    const remaining = budget.amount - budget.expense;
+                    const progress = budget.amount > 0 ? (budget.expense / budget.amount * 100) : 0;
+                    const progressColor = progress > 90 ? 'bg-red-500' : progress > 70 ? 'bg-amber-500' : 'bg-green-500';
+                    const remainingColor = remaining < 0 ? 'text-red-600' : 'text-green-600';
+
+                    return `
+                        <div class="bg-white rounded-xl shadow-sm p-5 card-hover no-print">
+                            <div class="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+                                <div class="flex-1">
+                                    <div class="flex items-center gap-2 mb-2">
+                                        <h3 class="text-lg font-bold text-gray-900">${budget.name}</h3>
+                                        ${budget.memo ? `<span class="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">${budget.memo}</span>` : ''}
+                                    </div>
+                                    ${budget.note ? `<p class="text-sm text-gray-500 mb-3">${budget.note}</p>` : ''}
+
+                                    <div class="grid grid-cols-3 gap-4 mb-3">
+                                        <div>
+                                            <p class="text-xs text-gray-500">মোট বাজেট</p>
+                                            <p class="text-base font-semibold text-gray-900">৳${this.formatNumber(budget.amount)}</p>
+                                        </div>
+                                        <div>
+                                            <p class="text-xs text-gray-500">ব্যয়</p>
+                                            <p class="text-base font-semibold text-red-600">৳${this.formatNumber(budget.expense)}</p>
+                                        </div>
+                                        <div>
+                                            <p class="text-xs text-gray-500">অবশিষ্ট</p>
+                                            <p class="text-base font-semibold ${remainingColor}">৳${this.formatNumber(remaining)}</p>
+                                        </div>
+                                    </div>
+
+                                    <div class="w-full bg-gray-200 rounded-full h-2.5">
+                                        <div class="${progressColor} h-2.5 rounded-full budget-progress" style="width: ${Math.min(progress, 100)}%"></div>
+                                    </div>
+                                    <p class="text-xs text-gray-500 mt-1">${progress.toFixed(1)}% ব্যয় হয়েছে</p>
+                                </div>
+
+                                <div class="flex sm:flex-col gap-2">
+                                    <button onclick="app.showAddExpenseModal('${budget.id}')" 
+                                        class="flex items-center gap-1 px-3 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition text-sm">
+                                        <i class="fas fa-minus-circle"></i>
+                                        <span>ব্যয়</span>
+                                    </button>
+                                    <button onclick="app.showAdjustModal('${budget.id}')" 
+                                        class="flex items-center gap-1 px-3 py-2 bg-amber-50 text-amber-600 rounded-lg hover:bg-amber-100 transition text-sm">
+                                        <i class="fas fa-edit"></i>
+                                        <span>পরিবর্তন</span>
+                                    </button>
+                                    <button onclick="app.showEditBudgetModal('${budget.id}')" 
+                                        class="flex items-center gap-1 px-3 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition text-sm">
+                                        <i class="fas fa-pen"></i>
+                                        <span>সম্পাদনা</span>
+                                    </button>
+                                    <button onclick="app.confirmDeleteBudget('${budget.id}')" 
+                                        class="flex items-center gap-1 px-3 py-2 bg-gray-50 text-gray-600 rounded-lg hover:bg-gray-100 transition text-sm">
+                                        <i class="fas fa-trash"></i>
+                                        <span>মুছুন</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="print-only border-b border-gray-300 py-3">
+                            <div class="flex justify-between items-start">
+                                <div class="flex-1">
+                                    <p class="font-bold text-gray-900">${budget.name}</p>
+                                    ${budget.memo ? `<p class="text-sm text-gray-600">${budget.memo}</p>` : ''}
+                                    ${budget.note ? `<p class="text-sm text-gray-500">${budget.note}</p>` : ''}
+                                </div>
+                                <div class="text-right">
+                                    <p class="text-sm">বাজেট: <span class="font-semibold">৳${this.formatNumber(budget.amount)}</span></p>
+                                    <p class="text-sm">ব্যয়: <span class="font-semibold">৳${this.formatNumber(budget.expense)}</span></p>
+                                    <p class="text-sm">অবশিষ্ট: <span class="font-semibold">৳${this.formatNumber(remaining)}</span></p>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+
+                const totalBudget = budgets.reduce((sum, b) => sum + (b.amount || 0), 0);
+                const totalExpense = budgets.reduce((sum, b) => sum + (b.expense || 0), 0);
+                const totalRemaining = totalBudget - totalExpense;
+
+                container.innerHTML += `
+                    <div class="print-only mt-6 border-t-2 border-gray-800 pt-4">
+                        <div class="flex justify-between text-base font-bold">
+                            <span>সর্বমোট</span>
+                            <div class="text-right">
+                                <span class="mr-8">বাজেট: ৳${this.formatNumber(totalBudget)}</span>
+                                <span class="mr-8">ব্যয়: ৳${this.formatNumber(totalExpense)}</span>
+                                <span>অবশিষ্ট: ৳${this.formatNumber(totalRemaining)}</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            },
+
+            renderLogs() {
+                const logs = this.data.logs[this.currentFiscalYear] || [];
+                const tbody = document.getElementById('logsTableBody');
+                const emptyLogs = document.getElementById('emptyLogs');
+                const searchTerm = document.getElementById('logSearch')?.value?.toLowerCase() || '';
+
+                const filteredLogs = logs.filter(log => 
+                    log.budgetName.toLowerCase().includes(searchTerm) ||
+                    log.memo.toLowerCase().includes(searchTerm) ||
+                    log.details.toLowerCase().includes(searchTerm)
+                ).sort((a, b) => new Date(b.date) - new Date(a.date));
+
+                if (filteredLogs.length === 0) {
+                    tbody.innerHTML = '';
+                    emptyLogs.classList.remove('hidden');
+                    return;
+                }
+
+                emptyLogs.classList.add('hidden');
+
+                const typeLabels = {
+                    'budget_created': { text: 'খাত তৈরি', class: 'bg-green-100 text-green-800' },
+                    'budget_updated': { text: 'খাত সম্পাদনা', class: 'bg-blue-100 text-blue-800' },
+                    'budget_adjusted': { text: 'বাজেট পরিবর্তন', class: 'bg-amber-100 text-amber-800' },
+                    'expense_added': { text: 'ব্যয় যোগ', class: 'bg-red-100 text-red-800' },
+                    'budget_deleted': { text: 'খাত মুছে ফেলা', class: 'bg-gray-100 text-gray-800' }
+                };
+
+                tbody.innerHTML = filteredLogs.map(log => {
+                    const type = typeLabels[log.type] || { text: log.type, class: 'bg-gray-100 text-gray-800' };
+                    return `
+                        <tr class="hover:bg-gray-50 transition">
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${this.formatDate(log.date)}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${log.budgetName}</td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <span class="px-2 py-1 text-xs font-medium rounded-full ${type.class}">${type.text}</span>
+                            </td>
+                            <td class="px-6 py-4 text-sm text-gray-600">${log.details}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${log.memo || '-'}</td>
+                        </tr>
+                    `;
+                }).join('');
+            },
+
+            renderReports() {
+                const budgets = this.data.budgets[this.currentFiscalYear] || [];
+                const budgetChart = document.getElementById('budgetChart');
+                const totalBudget = budgets.reduce((sum, b) => sum + b.amount, 0);
+
+                budgetChart.innerHTML = budgets.map(budget => {
+                    const percentage = totalBudget > 0 ? (budget.amount / totalBudget * 100) : 0;
+                    return `
+                        <div>
+                            <div class="flex justify-between text-sm mb-1">
+                                <span class="font-medium text-gray-700">${budget.name}</span>
+                                <span class="text-gray-600">৳${this.formatNumber(budget.amount)} (${percentage.toFixed(1)}%)</span>
+                            </div>
+                            <div class="w-full bg-gray-200 rounded-full h-3">
+                                <div class="bg-brand-500 h-3 rounded-full budget-progress" style="width: ${percentage}%"></div>
+                            </div>
+                        </div>
+                    `;
+                }).join('') || '<p class="text-gray-500 text-center">কোনো তথ্য নেই</p>';
+
+                const expenseChart = document.getElementById('expenseChart');
+                expenseChart.innerHTML = budgets.map(budget => {
+                    const percentage = budget.amount > 0 ? (budget.expense / budget.amount * 100) : 0;
+                    const color = percentage > 90 ? 'bg-red-500' : percentage > 70 ? 'bg-amber-500' : 'bg-green-500';
+                    return `
+                        <div>
+                            <div class="flex justify-between text-sm mb-1">
+                                <span class="font-medium text-gray-700">${budget.name}</span>
+                                <span class="text-gray-600">৳${this.formatNumber(budget.expense)} / ৳${this.formatNumber(budget.amount)}</span>
+                            </div>
+                            <div class="w-full bg-gray-200 rounded-full h-3">
+                                <div class="${color} h-3 rounded-full budget-progress" style="width: ${Math.min(percentage, 100)}%"></div>
+                            </div>
+                            <p class="text-xs text-gray-500 mt-1">${percentage.toFixed(1)}% ব্যয় হয়েছে</p>
+                        </div>
+                    `;
+                }).join('') || '<p class="text-gray-500 text-center">কোনো তথ্য নেই</p>';
+            },
+
+            updatePrintInfo() {
+                const fy = this.data.fiscalYears.find(f => f.id === this.currentFiscalYear);
+                document.getElementById('printOfficeName').textContent = this.data.settings.officeName || 'বাজেট বিবরণী';
+                document.getElementById('printOfficeAddress').textContent = this.data.settings.officeAddress || '';
+                document.getElementById('printFiscalYear').textContent = fy ? `অর্থবছর: ${fy.name}` : '';
+                document.getElementById('printDate').textContent = new Date().toLocaleDateString('bn-BD');
+            },
+
+            switchTab(tab) {
+                this.currentTab = tab;
+                ['budgets', 'logs', 'reports'].forEach(t => {
+                    const btn = document.getElementById(`tab-${t}`);
+                    const content = document.getElementById(`content-${t}`);
+                    if (t === tab) {
+                        btn.classList.add('tab-active');
+                        btn.classList.remove('text-gray-500');
+                        content.classList.remove('hidden');
+                    } else {
+                        btn.classList.remove('tab-active');
+                        btn.classList.add('text-gray-500');
+                        content.classList.add('hidden');
+                    }
+                });
+                if (tab === 'logs') this.renderLogs();
+                if (tab === 'reports') this.renderReports();
+            },
+
+            showAddBudgetModal() {
+                document.getElementById('budgetId').value = '';
+                document.getElementById('budgetModalTitle').textContent = 'নতুন বাজেট খাত';
+                document.getElementById('budgetName').value = '';
+                document.getElementById('budgetAmount').value = '';
+                document.getElementById('budgetExpense').value = '';
+                document.getElementById('budgetMemo').value = '';
+                document.getElementById('budgetNote').value = '';
+                document.getElementById('budgetModal').classList.remove('hidden');
+            },
+
+            showEditBudgetModal(budgetId) {
+                const budget = this.data.budgets[this.currentFiscalYear].find(b => b.id === budgetId);
+                if (!budget) return;
+                document.getElementById('budgetId').value = budget.id;
+                document.getElementById('budgetModalTitle').textContent = 'বাজেট খাত সম্পাদনা';
+                document.getElementById('budgetName').value = budget.name;
+                document.getElementById('budgetAmount').value = budget.amount;
+                document.getElementById('budgetExpense').value = budget.expense;
+                document.getElementById('budgetMemo').value = budget.memo || '';
+                document.getElementById('budgetNote').value = budget.note || '';
+                document.getElementById('budgetModal').classList.remove('hidden');
+            },
+
+            saveBudget() {
+                const id = document.getElementById('budgetId').value;
+                const name = document.getElementById('budgetName').value.trim();
+                const amount = parseFloat(document.getElementById('budgetAmount').value) || 0;
+                const expense = parseFloat(document.getElementById('budgetExpense').value) || 0;
+                const memo = document.getElementById('budgetMemo').value.trim();
+                const note = document.getElementById('budgetNote').value.trim();
+
+                if (!name) { alert('খাতের নাম দিন'); return; }
+                if (amount <= 0) { alert('বাজেটের পরিমাণ দিন'); return; }
+
+                const budgets = this.data.budgets[this.currentFiscalYear];
+                const isNew = !id;
+
+                if (isNew) {
+                    const newBudget = { id: this.generateId(), name, amount, expense, memo, note };
+                    budgets.push(newBudget);
+                    this.addLog('budget_created', name, `বাজেট খাত তৈরি করা হয়েছে। মোট বাজেট: ৳${this.formatNumber(amount)}`, memo);
+                } else {
+                    const budget = budgets.find(b => b.id === id);
+                    if (budget) {
+                        const oldAmount = budget.amount;
+                        budget.name = name; budget.amount = amount; budget.expense = expense;
+                        budget.memo = memo; budget.note = note;
+                        if (oldAmount !== amount) {
+                            this.addLog('budget_updated', name, `বাজেট সম্পাদনা: ৳${this.formatNumber(oldAmount)} থেকে ৳${this.formatNumber(amount)}`, memo);
+                        } else {
+                            this.addLog('budget_updated', name, `খাতের তথ্য সম্পাদনা করা হয়েছে`, memo);
+                        }
+                    }
+                }
+                this.saveData();
+                this.closeModal('budgetModal');
+                this.renderAll();
+            },
+
+            showAddFiscalYearModal() {
+                document.getElementById('fiscalYearId').value = '';
+                document.getElementById('fiscalYearModalTitle').textContent = 'নতুন অর্থবছর';
+                document.getElementById('fiscalYearName').value = '';
+                document.getElementById('fiscalYearStart').value = '';
+                document.getElementById('fiscalYearEnd').value = '';
+                document.getElementById('fiscalYearModal').classList.remove('hidden');
+            },
+
+            showEditFiscalYearModal() {
+                const fy = this.data.fiscalYears.find(f => f.id === this.currentFiscalYear);
+                if (!fy) return;
+                document.getElementById('fiscalYearId').value = fy.id;
+                document.getElementById('fiscalYearModalTitle').textContent = 'অর্থবছর সম্পাদনা';
+                document.getElementById('fiscalYearName').value = fy.name;
+                document.getElementById('fiscalYearStart').value = fy.startDate || '';
+                document.getElementById('fiscalYearEnd').value = fy.endDate || '';
+                document.getElementById('fiscalYearModal').classList.remove('hidden');
+            },
+
+            saveFiscalYear() {
+                const id = document.getElementById('fiscalYearId').value;
+                const name = document.getElementById('fiscalYearName').value.trim();
+                const startDate = document.getElementById('fiscalYearStart').value;
+                const endDate = document.getElementById('fiscalYearEnd').value;
+                if (!name) { alert('অর্থবছরের নাম দিন'); return; }
+
+                const isNew = !id;
+                if (isNew) {
+                    const newId = this.generateId();
+                    this.data.fiscalYears.push({ id: newId, name, startDate, endDate });
+                    this.data.budgets[newId] = [];
+                    this.data.logs[newId] = [];
+                    this.currentFiscalYear = newId;
+                } else {
+                    const fy = this.data.fiscalYears.find(f => f.id === id);
+                    if (fy) { fy.name = name; fy.startDate = startDate; fy.endDate = endDate; }
+                }
+                this.saveData();
+                this.closeModal('fiscalYearModal');
+                this.renderFiscalYearSelect();
+                this.renderAll();
+            },
+
+            showAdjustModal(budgetId) {
+                const budget = this.data.budgets[this.currentFiscalYear].find(b => b.id === budgetId);
+                if (!budget) return;
+                document.getElementById('adjustBudgetId').value = budget.id;
+                document.getElementById('adjustBudgetName').textContent = budget.name;
+                document.getElementById('adjustCurrentAmount').textContent = '৳' + this.formatNumber(budget.amount);
+                document.getElementById('adjustNewAmount').value = budget.amount;
+                document.getElementById('adjustReason').value = '';
+                document.getElementById('adjustMemo').value = '';
+                document.getElementById('adjustDate').value = new Date().toISOString().split('T')[0];
+                document.getElementById('adjustModal').classList.remove('hidden');
+            },
+
+            saveAdjustment() {
+                const budgetId = document.getElementById('adjustBudgetId').value;
+                const newAmount = parseFloat(document.getElementById('adjustNewAmount').value) || 0;
+                const reason = document.getElementById('adjustReason').value.trim();
+                const memo = document.getElementById('adjustMemo').value.trim();
+                const date = document.getElementById('adjustDate').value;
+                if (newAmount <= 0) { alert('নতুন বাজেটের পরিমাণ দিন'); return; }
+                if (!memo) { alert('স্মারক নম্বর দিন'); return; }
+
+                const budget = this.data.budgets[this.currentFiscalYear].find(b => b.id === budgetId);
+                if (budget) {
+                    const oldAmount = budget.amount;
+                    budget.amount = newAmount;
+                    const details = `বাজেট পরিবর্তন: ৳${this.formatNumber(oldAmount)} থেকে ৳${this.formatNumber(newAmount)}${reason ? '। কারণ: ' + reason : ''}`;
+                    this.addLog('budget_adjusted', budget.name, details, memo, date);
+                }
+                this.saveData();
+                this.closeModal('adjustModal');
+                this.renderAll();
+            },
+
+            showAddExpenseModal(budgetId) {
+                const budget = this.data.budgets[this.currentFiscalYear].find(b => b.id === budgetId);
+                if (!budget) return;
+                const remaining = budget.amount - budget.expense;
+                document.getElementById('expenseBudgetId').value = budget.id;
+                document.getElementById('expenseBudgetName').textContent = budget.name;
+                document.getElementById('expenseRemaining').textContent = '৳' + this.formatNumber(remaining);
+                document.getElementById('expenseAmount').value = '';
+                document.getElementById('expenseDescription').value = '';
+                document.getElementById('expenseMemo').value = '';
+                document.getElementById('expenseDate').value = new Date().toISOString().split('T')[0];
+                document.getElementById('expenseModal').classList.remove('hidden');
+            },
+
+            saveExpense() {
+                const budgetId = document.getElementById('expenseBudgetId').value;
+                const amount = parseFloat(document.getElementById('expenseAmount').value) || 0;
+                const description = document.getElementById('expenseDescription').value.trim();
+                const memo = document.getElementById('expenseMemo').value.trim();
+                const date = document.getElementById('expenseDate').value;
+                if (amount <= 0) { alert('ব্যয়ের পরিমাণ দিন'); return; }
+
+                const budget = this.data.budgets[this.currentFiscalYear].find(b => b.id === budgetId);
+                if (budget) {
+                    const remaining = budget.amount - budget.expense;
+                    if (amount > remaining) {
+                        if (!confirm('সতর্কি: বর্তমান ব্যয় বাজেট অতিক্রম করবে। তবুও যোগ করতে চান?')) return;
+                    }
+                    budget.expense += amount;
+                    const details = `ব্যয় যোগ: ৳${this.formatNumber(amount)}${description ? ' - ' + description : ''}`;
+                    this.addLog('expense_added', budget.name, details, memo || '-', date);
+                }
+                this.saveData();
+                this.closeModal('expenseModal');
+                this.renderAll();
+            },
+
+            confirmDeleteBudget(budgetId) {
+                this.deleteTarget = budgetId;
+                this.deleteType = 'budget';
+                document.getElementById('deleteMessage').textContent = 'আপনি কি নিশ্চিতভাবে এই বাজেট খাতটি মুছতে চান? এই খাতের সমস্ত তথ্য এবং লগ মুছে যাবে।';
+                document.getElementById('deleteModal').classList.remove('hidden');
+            },
+
+            confirmDelete() {
+                if (this.deleteType === 'budget') {
+                    const budgets = this.data.budgets[this.currentFiscalYear];
+                    const budget = budgets.find(b => b.id === this.deleteTarget);
+                    if (budget) {
+                        this.data.budgets[this.currentFiscalYear] = budgets.filter(b => b.id !== this.deleteTarget);
+                        this.addLog('budget_deleted', budget.name, `খাত মুছে ফেলা হয়েছে: ${budget.name}`, budget.memo || '-');
+                    }
+                } else if (this.deleteType === 'fiscalYear') {
+                    const fyId = this.deleteTarget;
+                    this.data.fiscalYears = this.data.fiscalYears.filter(f => f.id !== fyId);
+                    delete this.data.budgets[fyId];
+                    delete this.data.logs[fyId];
+                    if (this.currentFiscalYear === fyId) {
+                        this.currentFiscalYear = this.data.fiscalYears[0]?.id;
+                    }
+                    this.renderFiscalYearSelect();
+                }
+                this.saveData();
+                this.closeModal('deleteModal');
+                this.renderAll();
+            },
+
+            addLog(type, budgetName, details, memo, date) {
+                const logDate = date || new Date().toISOString().split('T')[0];
+                const logs = this.data.logs[this.currentFiscalYear];
+                logs.push({
+                    id: this.generateId(),
+                    date: logDate,
+                    budgetName,
+                    type,
+                    details,
+                    memo: memo || ''
+                });
+            },
+
+            filterLogs() {
+                this.renderLogs();
+            },
+
+            showSettings() {
+                document.getElementById('officeName').value = this.data.settings.officeName || '';
+                document.getElementById('officeAddress').value = this.data.settings.officeAddress || '';
+                document.getElementById('settingsModal').classList.remove('hidden');
+            },
+
+            saveSettings() {
+                this.data.settings.officeName = document.getElementById('officeName').value.trim();
+                this.data.settings.officeAddress = document.getElementById('officeAddress').value.trim();
+                this.saveData();
+                this.closeModal('settingsModal');
+                this.updatePrintInfo();
+            },
+
+            exportData() {
+                const dataStr = JSON.stringify(this.data, null, 2);
+                const blob = new Blob([dataStr], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `budget_data_${new Date().toISOString().split('T')[0]}.json`;
+                a.click();
+                URL.revokeObjectURL(url);
+            },
+
+            importData(input) {
+                const file = input.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        const imported = JSON.parse(e.target.result);
+                        if (confirm('এই ডাটা লোড করলে বর্তমান সব তথ্য প্রতিস্থাপিত হবে। আপনি কি নিশ্চিত?')) {
+                            this.data = imported;
+                            this.currentFiscalYear = this.data.fiscalYears[0]?.id;
+                            this.saveData();
+                            this.renderFiscalYearSelect();
+                            this.renderAll();
+                            alert('ডাটা সফলভাবে লোড হয়েছে');
+                        }
+                    } catch (err) {
+                        alert('ফাইল পড়তে ত্রুটি হয়েছে। সঠিক JSON ফাইল নির্বাচন করুন।');
+                    }
+                };
+                reader.readAsText(file);
+                input.value = '';
+            },
+
+            showResetConfirm() {
+                this.deleteTarget = 'all';
+                this.deleteType = 'reset';
+                document.getElementById('deleteMessage').textContent = 'সতর্কি: এই অপারেশন সব ডাটা মুছে ফেলবে এবং সিস্টেম ডিফল্ট অবস্থায় ফিরে যাবে। আপনি কি নিশ্চিত?';
+                document.getElementById('deleteModal').classList.remove('hidden');
+            },
+
+            exportToExcel() {
+                const budgets = this.data.budgets[this.currentFiscalYear] || [];
+                const fy = this.data.fiscalYears.find(f => f.id === this.currentFiscalYear);
+
+                let csv = '\uFEFF';
+                csv += 'বাজেট বিবরণী\n';
+                csv += `অর্থবছর: ${fy ? fy.name : ''}\n`;
+                csv += `প্রিন্ট তারিখ: ${new Date().toLocaleDateString('bn-BD')}\n\n`;
+                csv += 'ক্রম,খাতের নাম,মোট বাজেট,ব্যয়,অবশিষ্ট,স্মারক,মন্তব্য\n';
+
+                let totalBudget = 0, totalExpense = 0;
+                budgets.forEach((budget, index) => {
+                    const remaining = budget.amount - budget.expense;
+                    totalBudget += budget.amount;
+                    totalExpense += budget.expense;
+                    csv += `${index + 1},${budget.name},${budget.amount},${budget.expense},${remaining},${budget.memo || ''},${budget.note || ''}\n`;
+                });
+
+                csv += `\nমোট,,${totalBudget},${totalExpense},${totalBudget - totalExpense},,\n`;
+
+                const logs = this.data.logs[this.currentFiscalYear] || [];
+                csv += `\n\nপরিবর্তন লগ\n`;
+                csv += 'তারিখ,খাত,পরিবর্তনের ধরন,বিস্তারিত,স্মারক\n';
+                logs.forEach(log => {
+                    const typeMap = {
+                        'budget_created': 'খাত তৈরি',
+                        'budget_updated': 'খাত সম্পাদনা',
+                        'budget_adjusted': 'বাজেট পরিবর্তন',
+                        'expense_added': 'ব্যয় যোগ',
+                        'budget_deleted': 'খাত মুছে ফেলা'
+                    };
+                    csv += `${log.date},${log.budgetName},${typeMap[log.type] || log.type},${log.details},${log.memo}\n`;
+                });
+
+                const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `budget_${fy ? fy.name.replace(/-/g, '_') : 'export'}_${new Date().toISOString().split('T')[0]}.csv`;
+                a.click();
+                URL.revokeObjectURL(url);
+            },
+
+            closeModal(modalId) {
+                document.getElementById(modalId).classList.add('hidden');
+            },
+
+            formatNumber(num) {
+                if (num === undefined || num === null) return '০';
+                return num.toLocaleString('bn-BD');
+            },
+
+            formatDate(dateStr) {
+                if (!dateStr) return '-';
+                const date = new Date(dateStr);
+                return date.toLocaleDateString('bn-BD', { year: 'numeric', month: 'long', day: 'numeric' });
+            },
+
+            setupEventListeners() {
+                document.addEventListener('keydown', (e) => {
+                    if (e.key === 'Escape') {
+                        ['budgetModal', 'fiscalYearModal', 'adjustModal', 'expenseModal', 'deleteModal', 'settingsModal'].forEach(id => {
+                            document.getElementById(id).classList.add('hidden');
+                        });
+                    }
+                });
+            }
+        };
+
+        document.addEventListener('DOMContentLoaded', () => {
+            app.init();
+        });
+    </script>
+</body>
+</html>
